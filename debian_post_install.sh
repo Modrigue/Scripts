@@ -67,6 +67,9 @@ sudo flatpak install libreoffice
 sudo nala install gparted libavcodec-extra
 sudo flatpak install thunderbird gimp vlc inkscape filezilla keepassxc
 
+# MAO
+sudo flatpak install musescore tenacity
+
 # broadcom wifi card driver
 sudo nala install broadcom-sta-dkms
 
