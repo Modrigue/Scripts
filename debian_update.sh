@@ -5,5 +5,8 @@
 sudo flatpak update
 
 # update sources and packages
-sudo nala update
-sudo nala dist-upgrade
+sudo apt update
+sudo apt dist-upgrade
+# or via nala
+sudo apt install --only-upgrade nala
+sudo nala upgrade
