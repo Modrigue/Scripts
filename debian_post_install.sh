@@ -63,9 +63,9 @@ sudo flatpak install gitkraken intellij postman dbeaver
 sudo nala remove libreoffice-common libreoffice-core libreoffice-gnome libreoffice-gtk3 libreoffice-help-common libreoffice-help-en-us libreoffice-help-fr libreoffice-help-es libreoffice-style-colibre libreoffice-style-elementary
 sudo flatpak install libreoffice
 
-# misc graphical tools
+# misc tools
 sudo nala install gparted libavcodec-extra
-sudo flatpak install thunderbird gimp vlc inkscape filezilla keepassxc
+sudo flatpak install thunderbird gimp vlc inkscape filezilla keepassxc jitsi
 
 # MAO
 sudo flatpak install musescore tenacity
@@ -78,8 +78,10 @@ sudo nala install nvidia-detect
 nvidia-detect
 sudo nala install nvidia-driver # if needed
 
+# install gnome / kde software center
+sudo nala install gnome-software gnome-software-plugin-flatpak
+# or
+sudo nala install plasma-discover plasma-discover-backend-flatpak
+
 # to make XFCE remember the login at startup:
 # https://medium.com/the-blog-of-ehsan-nazim/how-to-make-debian-10-xfces-login-screen-remember-my-username-fe9fb5ab80ef#:~:text=For%20security%20reasons%2C%20it%20does,conf.
-
-# install gnome software center
-sudo nala install gnome-software gnome-software-plugin-flatpak
