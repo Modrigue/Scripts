@@ -78,9 +78,11 @@ sudo nala install nvidia-detect
 nvidia-detect
 sudo nala install nvidia-driver # if needed
 
-# install gnome / kde software center
+# additional gnome / kde tools
+sudo nala install gnome-system-tools
 sudo nala install gnome-software gnome-software-plugin-flatpak
 # or
+sudo nala install kuser
 sudo nala install plasma-discover plasma-discover-backend-flatpak
 
 # to make XFCE remember the login at startup:
