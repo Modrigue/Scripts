@@ -65,7 +65,7 @@ sudo flatpak install libreoffice
 
 # misc tools
 sudo nala install gparted libavcodec-extra
-sudo flatpak install thunderbird gimp vlc inkscape filezilla keepassxc jitsi
+sudo flatpak install thunderbird gimp vlc inkscape filezilla keepassxc jitsi drawio
 
 # MAO
 sudo flatpak install musescore tenacity
