@@ -44,6 +44,14 @@ sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub
 sudo nala remove firefox-esr
 sudo flatpak install firefox brave
 
+# LibreOffice: remove obsolete preinstalled version and install flatpak version
+sudo nala remove libreoffice-common libreoffice-core libreoffice-gnome libreoffice-gtk3 libreoffice-help-common libreoffice-help-en-us libreoffice-help-fr libreoffice-help-es libreoffice-style-colibre libreoffice-style-elementary
+sudo flatpak install libreoffice
+
+# misc tools
+sudo nala install gparted libavcodec-extra
+sudo flatpak install thunderbird gimp vlc inkscape filezilla keepassxc jitsi drawio
+
 # VS code
 curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
 sudo install -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/microsoft-archive-keyring.gpg
@@ -58,14 +66,6 @@ sudo nala install cmake
 sudo nala install python3-venv python3-pip
 sudo nala install nodejs npm
 sudo flatpak install gitkraken intellij postman dbeaver
-
-# LibreOffice: remove obsolete preinstalled version and install flatpak version
-sudo nala remove libreoffice-common libreoffice-core libreoffice-gnome libreoffice-gtk3 libreoffice-help-common libreoffice-help-en-us libreoffice-help-fr libreoffice-help-es libreoffice-style-colibre libreoffice-style-elementary
-sudo flatpak install libreoffice
-
-# misc tools
-sudo nala install gparted libavcodec-extra
-sudo flatpak install thunderbird gimp vlc inkscape filezilla keepassxc jitsi drawio
 
 # MAO
 sudo flatpak install musescore tenacity
