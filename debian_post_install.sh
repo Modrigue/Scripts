@@ -21,7 +21,7 @@ wget -qO- https://deb.volian.org/volian/scar.key | gpg --dearmor | dd of=/usr/sh
 echo "deb [signed-by=/usr/share/keyrings/volian-archive-scar.gpg arch=amd64] https://deb.volian.org/volian/ scar main" > /etc/apt/sources.list.d/volian-archive-scar.list
 exit
 sudo apt update
-sudo apt install nala-legacy
+sudo apt install nala
 
 # check and update fastest mirrors
 sudo nala fetch
@@ -68,7 +68,7 @@ sudo nala install nodejs npm
 sudo flatpak install gitkraken intellij postman dbeaver
 
 # MAO
-sudo flatpak install musescore tenacity
+sudo flatpak install musescore audacity
 
 # broadcom wifi card driver
 sudo nala install broadcom-sta-dkms
@@ -86,4 +86,4 @@ sudo nala install kuser
 sudo nala install plasma-discover plasma-discover-backend-flatpak
 
 # to make XFCE remember the login at startup:
-# https://medium.com/the-blog-of-ehsan-nazim/how-to-make-debian-10-xfces-login-screen-remember-my-username-fe9fb5ab80ef#:~:text=For%20security%20reasons%2C%20it%20does,conf.
+# https://libtechnophile.blogspot.com/2024/12/auto-fill-username-in-debian-xfce-login.html
