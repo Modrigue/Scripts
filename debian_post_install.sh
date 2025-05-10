@@ -42,7 +42,7 @@ sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub
 
 # browsers: remove preinstalled Firefox ESR
 sudo nala remove firefox-esr
-sudo flatpak install firefox brave
+sudo flatpak install firefox brave mullvad
 
 # LibreOffice: remove obsolete preinstalled version and install flatpak version
 sudo nala remove libreoffice-common libreoffice-core libreoffice-gnome libreoffice-gtk3 libreoffice-help-common libreoffice-help-en-us libreoffice-help-fr libreoffice-help-es libreoffice-style-colibre libreoffice-style-elementary
