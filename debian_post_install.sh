@@ -67,7 +67,15 @@ sudo nala install python3-venv python3-pip
 sudo nala install nodejs npm
 sudo flatpak install gitkraken intellij postman dbeaver
 
-# MAO
+# .NET tools
+wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+sudo apt update
+sudo nala install -y dotnet-sdk-8.0
+sudo dotnet workload update
+dotnet new install Avalonia.Templates
+
+# music
 sudo flatpak install musescore audacity
 
 # broadcom wifi card driver
