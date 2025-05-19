@@ -103,3 +103,4 @@ sudo nala install plasma-discover plasma-discover-backend-flatpak
 
 # to configure XFCE whisker menu:
 # https://www.debugpoint.com/xfce-whisker-menu/
+# command: xfce4-popup-whiskermenu
