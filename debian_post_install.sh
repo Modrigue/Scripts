@@ -66,7 +66,7 @@ sudo nala install cmake
 sudo nala install python3-venv python3-pip
 sudo nala install nodejs npm
 sudo npm install -g typescript
-sudo flatpak install intellij postman dbeaver
+sudo flatpak install intellij pycharm postman dbeaver
 #sudo flatpak install gitkraken # icon bug
 wget https://api.gitkraken.dev/releases/production/linux/x64/active/gitkraken-amd64.deb
 sudo dpkg -i gitkraken-amd64.deb
