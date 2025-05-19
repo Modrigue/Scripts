@@ -7,9 +7,9 @@ sudo apt update
 sudo apt dist-upgrade
 
 # for Virtual Box
-sudo sh /media/cdrom0/VBoxLinuxAdditions.run
+sudo sh /mnt/$USER/VGA_VERSION/VBoxLinuxAdditions.run
 # from https://unix.stackexchange.com/questions/52667/file-permission-issues-with-shared-folders-under-virtual-box-ubuntu-guest-wind
-sudo usermod -G vboxsf -a your_login # to give access to shared folder if existing
+sudo usermod -G vboxsf -a $USER # to give access to shared folder if existing
 
 # nala for Debian >=12 / Ubuntu >=22
 sudo apt update
@@ -66,6 +66,7 @@ sudo nala install cmake
 sudo nala install python3-venv python3-pip
 sudo nala install nodejs npm
 sudo flatpak install gitkraken intellij postman dbeaver
+sudo npm install -g typescript
 
 # .NET tools
 wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
