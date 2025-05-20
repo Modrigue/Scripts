@@ -28,7 +28,7 @@ sudo nala fetch
 sudo nala update
 
 # misc cli tools
-sudo nala install curl wget vim neofetch htop btop duf preload httpie
+sudo nala install curl wget vim neofetch htop btop duf preload httpie hardinfo
 
 # XFCE: whisker menu
 sudo nala install xfce4-whiskermenu-plugin
