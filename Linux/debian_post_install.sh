@@ -62,7 +62,7 @@ sudo nala update
 sudo nala install code
 
 # other development tools
-sudo nala install cmake
+sudo nala install build-essential cmake
 sudo nala install python3-venv python3-pip
 sudo nala install nodejs npm
 sudo npm install -g typescript
