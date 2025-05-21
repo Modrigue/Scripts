@@ -1,6 +1,7 @@
 # LinuxScripts
-My personal useful scripts for Linux.
 
-[Debian post-installation script](./debian_post_install.sh)
+My personal useful scripts for Linux and Windows.
 
-[Debian update script](./debian_update.sh)
+[Debian post-installation script](./Linux/debian_post_install.sh)
+
+[Debian update script](./Linux/debian_update.sh)
