@@ -49,7 +49,7 @@ sudo nala remove libreoffice-common libreoffice-core libreoffice-gnome libreoffi
 sudo flatpak install libreoffice
 
 # misc tools
-sudo nala install gparted libavcodec-extra
+sudo nala install gparted libavcodec-extra tlp
 sudo flatpak install thunderbird gimp vlc inkscape filezilla keepassxc jitsi drawio
 
 # VS code
