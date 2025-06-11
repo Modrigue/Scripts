@@ -11,5 +11,5 @@ taskkill /f /im explorer.exe
 start explorer.exe
 
 echo.
-echo Bing/web search in taskbar has been disabled.
+echo Bing/web search in taskbar status updated.
 pause
