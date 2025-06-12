@@ -4,9 +4,9 @@ My personal useful scripts for Linux and Windows.
 
 ## Linux
 
-[Disk clone](./Linux/linux_disk_clone.sh)
+[Disk clone](./Linux/disk_clone.sh)
 
-[File utils](./Linux/linux_file_utils.sh)
+[File utils](./Linux/file_utils.sh)
 
 [Debian post-installation script](./Linux/debian_post_install.sh)
 
