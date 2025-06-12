@@ -8,6 +8,8 @@ My personal useful scripts for Linux and Windows.
 
 [File utils](./Linux/file_utils.sh)
 
+[Find commands](./Linux/find_commands.sh)
+
 [Debian post-installation script](./Linux/debian_post_install.sh)
 
 [Debian update script](./Linux/debian_update.sh)
