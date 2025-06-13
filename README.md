@@ -1,6 +1,6 @@
 # Scripts
 
-My personal useful scripts for Linux and Windows.
+Useful scripts and commands for Linux and Windows.
 
 ## Linux
 
