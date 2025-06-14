@@ -6,7 +6,7 @@ sudo flatpak update
 
 # update sources and packages
 sudo apt update
-sudo apt dist-upgrade
+sudo apt dist-upgrade -y
 # or via nala
-sudo apt install --only-upgrade nala
-sudo nala upgrade
+sudo apt install --only-upgrade nala -y
+sudo nala upgrade -y

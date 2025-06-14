@@ -3,4 +3,4 @@
 
 sudo apt update
 
-sudo apt install ubuntu-restricted-extras -y
+sudo apt install -y ubuntu-restricted-extras
