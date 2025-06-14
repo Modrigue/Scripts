@@ -16,6 +16,8 @@ Useful scripts and commands for Linux and Windows.
 
 [Ubuntu post-installation script](./Linux/ubuntu_post_install.sh)
 
+[XFCE commands](./Linux/xfce_commands.sh)
+
 ## Windows
 
 [Full context menu in Windows 11 Explorer](./Windows/set_full_context_menu_win11.bat)
