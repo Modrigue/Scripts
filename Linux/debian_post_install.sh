@@ -7,7 +7,7 @@ sudo apt update
 sudo apt dist-upgrade -y
 
 # for Virtual Box
-sudo sh /mnt/$USER/VGA_VERSION/VBoxLinuxAdditions.run
+sudo sh /media/$USER/VGA_VERSION/VBoxLinuxAdditions.run
 # from https://unix.stackexchange.com/questions/52667/file-permission-issues-with-shared-folders-under-virtual-box-ubuntu-guest-wind
 sudo usermod -G vboxsf -a $USER # to give access to shared folder if existing
 
