@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# to install whisker menu
+sudo apt install -y xfce4-whiskermenu-plugin
+# add a shortcut for command xfce4-popup-whiskermenu
+#sudo reboot
+
 # to list all XFCE panels and their plugins
 for pid in $(xfconf-query -c xfce4-panel -p /panels); do
     echo "Panel $pid:"

@@ -30,11 +30,6 @@ sudo nala update
 # misc cli tools
 sudo nala install -y curl wget vim neofetch htop btop duf preload httpie hardinfo
 
-# XFCE: whisker menu
-sudo nala install -y xfce4-whiskermenu-plugin
-# add a shortcut for command xfce4-popup-whiskermenu
-#sudo reboot
-
 # flatpak
 sudo nala install -y flatpak
 sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
@@ -70,7 +65,6 @@ sudo flatpak install intellij pycharm postman dbeaver
 #sudo flatpak install gitkraken # icon bug
 wget https://api.gitkraken.dev/releases/production/linux/x64/active/gitkraken-amd64.deb
 sudo dpkg -i gitkraken-amd64.deb
-
 
 # .NET tools
 wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
