@@ -1,6 +1,6 @@
 # Scripts
 
-Useful scripts and commands for Linux and Windows.
+Useful scripts and commands for Linux, Windows and WSL.
 
 ## Linux
 
@@ -22,14 +22,21 @@ Useful scripts and commands for Linux and Windows.
 
 [Full context menu in Windows 11 Explorer](./Windows/set_full_context_menu_win11.bat)
 
+[Remove Web/Bing search in taskbar](./Windows/remove_web_search_in_taskbar.bat)
+
+[Persistent history](./Windows/history.ps1)
+
 [Detect Visual Studio versions](./Windows/detect_vs_versions.bat)
 
 [Detect Visual Studio versions (detailed)](./Windows/detect_vs_versions_detailed.bat)
 
 [Remove OneDrive](./Windows/remove_onedrive.cmd)
 
-[Remove Web/Bing search in taskbar](./Windows/remove_web_search_in_taskbar.bat)
+### WSL
 
+[WSL commands](./Windows/WSL/wsl_commands.bat)
+
+[WSL Debian post-installation script](./Windows/WSL/wsl_debian_post_install.bat)
 
 ## SSH
 
