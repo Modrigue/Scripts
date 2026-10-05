@@ -11,6 +11,13 @@
 # "MHz" is the marketing figure (actually MT/s); the real bus clock is half
 # of it.
 #
+# Virtual machines (VirtualBox, VMware, Hyper-V, QEMU/KVM, Xen, Parallels...)
+# are recognized from the system manufacturer and model, or from the "virtual
+# machine" flag of the firmware. Their memory modules are emulated: their type
+# is shown as "Virtual" instead of being estimated, and the RAM allocated to
+# the VM, as seen by the OS, is shown as well (some hypervisors, VirtualBox by
+# default, expose no module at all).
+#
 # Compatible with bash 3.2 (macOS) and later, and with any awk
 # (gawk, mawk, BWK awk, busybox).
 
@@ -49,6 +56,8 @@ esac
 # --- Collection ----------------------------------------------------------------
 # Every source prints lines in a common format:
 #   S|PC manufacturer|model
+#   V|1 if the firmware flags a virtual machine
+#   T|RAM visible to the OS (MB)
 #   A|number of slots|max capacity (MB)
 #   M|slot|manufacturer|part number|size (MB, or ? if unknown)|type|form factor|nominal MHz|current MHz
 
@@ -78,6 +87,7 @@ parse_dmidecode() {
         sec = ""
     }
     { sub(/\r$/, "") }
+    /^\t\tSystem is a virtual machine$/ { print "V|1"; next }    # BIOS Information characteristic
     /^Handle /                { flush(); handle = $2; sub(/,$/, "", handle); next }
     /^System Information$/    { flush(); sec = "sys"; sman = sprod = ""; next }
     /^Physical Memory Array$/ { flush(); sec = "arr"; use = ""; devices = 0; maxcap = 0; next }
@@ -122,11 +132,14 @@ collect_linux() {
     fi
     command -v dmidecode >/dev/null 2>&1 || die "dmidecode not found: install it (e.g. sudo apt install dmidecode)."
     [ "$(id -u)" -eq 0 ] || die "dmidecode reads the firmware SMBIOS table: run again with sudo."
-    dmidecode -t 1,16,17 | parse_dmidecode
+    awk '/^MemTotal:/ { printf "T|%d\n", $2 / 1024 }' /proc/meminfo
+    dmidecode -t 0,1,16,17 | parse_dmidecode
 }
 
 collect_macos() {
     echo "S|Apple|$(sysctl -n hw.model 2>/dev/null)"
+    echo "V|$(sysctl -n kern.hv_vmm_present 2>/dev/null)"
+    sysctl -n hw.memsize 2>/dev/null | awk '{ printf "T|%d\n", $1 / 1048576 }'
     # XML output: its keys (dimm_size...) are not translated, unlike the text output
     system_profiler -xml SPMemoryDataType | awk '
     function to_mb(v,   n, u) {
@@ -173,6 +186,7 @@ $ErrorActionPreference = "SilentlyContinue"
 $ProgressPreference = "SilentlyContinue"
 $cs = Get-WmiObject Win32_ComputerSystem
 "S|" + "$($cs.Manufacturer)".Trim() + "|" + "$($cs.Model)".Trim()
+"T|" + [math]::Round([double]$cs.TotalPhysicalMemory / 1MB)
 Get-WmiObject Win32_PhysicalMemoryArray | Where-Object { $_.Use -eq 3 } | ForEach-Object {
     $max = [double]$_.MaxCapacityEx
     if ($max -le 0) { $max = [double]$_.MaxCapacity }
@@ -269,6 +283,26 @@ PART_DDR='^HYMP=DDR2
 ^KVR(21|24|26|29|32)[A-Z]=DDR4
 ^KVR(48|52|56|64)[A-Z]=DDR5'
 
+# "manufacturer model" of the system, in lower case -> hypervisor
+HYPERVISORS='virtualbox|innotek=VirtualBox
+vmware=VMware
+microsoft corporation virtual machine=Hyper-V
+parallels=Parallels
+qemu|bochs|standard pc \(|openstack|ovirt|rhev|proxmox|(^| )kvm( |$)=QEMU/KVM
+(^| )xen( |$)|hvm domu=Xen
+virtualmac|apple virtualization=Apple Virtualization
+bhyve=bhyve
+amazon ec2=Amazon EC2
+google compute engine=Google Compute Engine'
+
+# Prints the hypervisor name, "Unknown" if only the firmware flags a virtual
+# machine, nothing on a physical machine
+detect_hypervisor() {
+    local system
+    system=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+    first_match "$system" "$HYPERVISORS" || { [ "$2" = 1 ] && echo 'Unknown'; }
+}
+
 resolve_vendor() {
     local m="$1" part="$2" up hex='' code vendor
     local re_placeholder='^(0+|F+|UNKNOWN|UNDEFINED|NOT ?SPECIFIED|NOT AVAILABLE|MANUFACTURER[0-9]*|TO BE FILLED.*)$'
@@ -319,8 +353,9 @@ ddr_from_speed() {
 }
 
 resolve_type() {
-    local exact="$1" part="$2" speed="$3" guess re='(DDR|SDRAM|RDRAM|HBM|FBD)'
+    local exact="$1" part="$2" speed="$3" virtual="$4" guess re='(DDR|SDRAM|RDRAM|HBM|FBD)'
     if [[ $exact =~ $re ]]; then echo "$exact"; return; fi
+    if [ -n "$virtual" ]; then echo 'Virtual'; return; fi    # emulated module: an estimated DDR type would be misleading
     if guess=$(ddr_from_part "$part") || guess=$(ddr_from_speed "$speed"); then
         echo "$guess (estimated)"
     else
@@ -377,29 +412,55 @@ fi
 data=$(collect_$os) || exit 1
 [ -n "$data" ] || die "Cannot read the memory information."
 
-pc_vendor='' pc_model='' slots=0 max_mb=0 total_mb=0 count=0
-ROWS=()
+pc_vendor='' pc_model='' vm_flag='' os_mb=0 slots=0 max_mb=0 total_mb=0 count=0
+MODULES=()
 while IFS='|' read -r kind f1 f2 f3 f4 f5 f6 f7 f8; do
     case "$kind" in
         S) pc_vendor=$f1 pc_model=$f2 ;;
+        V) vm_flag=$f1 ;;
+        T) os_mb=$f1 ;;
         A) slots=$((slots + ${f1:-0}))
            max_mb=$(awk -v a="$max_mb" -v b="${f2:-0}" 'BEGIN { print a + b }') ;;
-        M) # f1 slot, f2 manufacturer, f3 part number, f4 size MB, f5 type, f6 form factor, f7 MHz, f8 current MHz
-           f3=$(decode_hex "$f3")
-           speed=${f7:-0}; conf=${f8:-0}
-           [ "$speed" -gt 0 ] 2>/dev/null || speed=0
-           [ "$conf" -gt 0 ] 2>/dev/null || conf=0
-           ROWS[count]="$f1|$(resolve_vendor "$f2" "$f3")|$f3|$(mb_to_gb "$f4")|$(resolve_type "$f5" "$f3" "$speed")|$(normalize_form "$f6")|${speed/#0/?}|${conf/#0/?}"
-           total_mb=$(awk -v a="$total_mb" -v b="$f4" 'BEGIN { print a + b }')
-           count=$((count + 1)) ;;
+        M) MODULES[${#MODULES[@]}]="$f1|$f2|$f3|$f4|$f5|$f6|$f7|$f8" ;;
     esac
 done <<< "$data"
 
+# Read once the whole data is parsed: the module columns depend on it
+hypervisor=$(detect_hypervisor "$pc_vendor $pc_model" "$vm_flag")
+
+ROWS=()
+for module in "${MODULES[@]}"; do
+    # f1 slot, f2 manufacturer, f3 part number, f4 size MB, f5 type, f6 form factor, f7 MHz, f8 current MHz
+    IFS='|' read -r f1 f2 f3 f4 f5 f6 f7 f8 <<< "$module"
+    f3=$(decode_hex "$f3")
+    speed=${f7:-0}; conf=${f8:-0}
+    [ "$speed" -gt 0 ] 2>/dev/null || speed=0
+    [ "$conf" -gt 0 ] 2>/dev/null || conf=0
+    brand=$(resolve_vendor "$f2" "$f3")
+    [ -n "$hypervisor" ] && [ "$brand" = 'Unknown' ] && brand=$hypervisor
+    ROWS[count]="$f1|$brand|$f3|$(mb_to_gb "$f4")|$(resolve_type "$f5" "$f3" "$speed" "$hypervisor")|$(normalize_form "$f6")|${speed/#0/?}|${conf/#0/?}"
+    total_mb=$(awk -v a="$total_mb" -v b="$f4" 'BEGIN { print a + b }')
+    count=$((count + 1))
+done
+
+os_ram=''
+[ "$os_mb" -gt 0 ] 2>/dev/null && os_ram="RAM visible to the OS: $(mb_to_gb "$os_mb") GB"
+
 echo
-echo "PC: $pc_vendor $pc_model (${HOSTNAME:-$(hostname)})"
+if [ -n "$hypervisor" ]; then
+    echo "VM: $pc_vendor $pc_model (${HOSTNAME:-$(hostname)}) - hypervisor: $hypervisor"
+else
+    echo "PC: $pc_vendor $pc_model (${HOSTNAME:-$(hostname)})"
+fi
 
 if [ "$count" -eq 0 ]; then
-    echo 'No RAM module found (virtual machine?).'
+    if [ -n "$hypervisor" ]; then
+        echo 'No memory module exposed by the hypervisor.'
+    else
+        echo 'No RAM module found (virtual machine?).'
+    fi
+    [ -n "$os_ram" ] && echo "$os_ram"
+    echo
     exit 0
 fi
 
@@ -436,10 +497,16 @@ print_row "$(echo "$header_line" | sed 's/[^|]/-/g')"
 for row in "${ROWS[@]}"; do print_row "$row"; done
 echo
 
-summary="Total: $(mb_to_gb "$total_mb") GB in $count module(s)"
-[ "$slots" -gt 0 ] && summary="$summary - $count/$slots slot(s) used"
-max_gb=$(awk -v m="$max_mb" 'BEGIN { printf "%d", m / 1024 + 0.5 }')
-[ "$max_gb" -gt 0 ] && summary="$summary - BIOS official max: $max_gb GB"
+if [ -n "$hypervisor" ]; then
+    # The slot count and maximum capacity of a virtual firmware are meaningless
+    summary="Total: $(mb_to_gb "$total_mb") GB in $count virtual module(s)"
+    [ -n "$os_ram" ] && summary="$summary - $os_ram"
+else
+    summary="Total: $(mb_to_gb "$total_mb") GB in $count module(s)"
+    [ "$slots" -gt 0 ] && summary="$summary - $count/$slots slot(s) used"
+    max_gb=$(awk -v m="$max_mb" 'BEGIN { printf "%d", m / 1024 + 0.5 }')
+    [ "$max_gb" -gt 0 ] && summary="$summary - BIOS official max: $max_gb GB"
+fi
 echo "$summary"
 echo
 

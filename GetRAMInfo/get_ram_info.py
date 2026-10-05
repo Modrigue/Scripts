@@ -16,6 +16,13 @@ part number (or its speed) and followed by "(estimated)".
 "MHz" is the marketing figure (e.g. DDR4-2666), which is actually a data rate
 in MT/s. The real bus clock is half of it.
 
+Virtual machines (VirtualBox, VMware, Hyper-V, QEMU/KVM, Xen, Parallels, WSL 2...)
+are recognized from the system manufacturer and model, or from the "virtual
+machine" flag of the firmware. Their memory modules are emulated: their type is
+shown as "Virtual" instead of being estimated, and the RAM allocated to the VM,
+as seen by the OS, is shown as well (some hypervisors, VirtualBox by default,
+expose no module at all).
+
 Python 3.6 or later (3.8 is the last version available for Windows 7).
 
 Usage:
@@ -82,6 +89,20 @@ SMBIOS_FORM_FACTORS = {
     0x03: 'SIMM', 0x05: 'Soldered', 0x09: 'DIMM', 0x0B: 'Soldered',
     0x0C: 'RIMM', 0x0D: 'SO-DIMM', 0x0F: 'FB-DIMM',
 }
+
+# "manufacturer model" of the system, in lower case -> hypervisor
+HYPERVISORS = [
+    (r'virtualbox|innotek', 'VirtualBox'),
+    (r'vmware', 'VMware'),
+    (r'microsoft (corporation virtual machine|wsl)', 'Hyper-V'),
+    (r'parallels', 'Parallels'),
+    (r'qemu|bochs|standard pc \(|openstack|ovirt|rhev|proxmox|(^| )kvm( |$)', 'QEMU/KVM'),
+    (r'(^| )xen( |$)|hvm domu', 'Xen'),
+    (r'virtualmac|apple virtualization', 'Apple Virtualization'),
+    (r'bhyve', 'bhyve'),
+    (r'amazon ec2', 'Amazon EC2'),
+    (r'google compute engine', 'Google Compute Engine'),
+]
 
 COLUMNS = ['Slot', 'Brand', 'Part number', 'GB', 'Type', 'Form factor', 'Nominal MHz', 'Current MHz']
 RIGHT_ALIGNED = {'GB', 'Nominal MHz', 'Current MHz'}
@@ -172,11 +193,22 @@ def ddr_from_speed(mts):
     return 'DDR5'
 
 
-def resolve_type(exact, part_number, speed):
+def resolve_type(exact, part_number, speed, virtual=False):
     if exact:
         return exact
+    if virtual:
+        return 'Virtual'                                 # emulated module: an estimated DDR type would be misleading
     guess = ddr_from_part_number(part_number) or ddr_from_speed(speed)
     return guess + ' (estimated)' if guess else 'Unknown'
+
+
+def detect_hypervisor(system):
+    """Hypervisor name, 'Unknown' if only the firmware flags a virtual machine, None on a physical machine."""
+    text = ('%s %s' % (system.get('manufacturer', ''), system.get('model', ''))).strip().lower()
+    for pattern, name in HYPERVISORS:
+        if re.search(pattern, text):
+            return name
+    return 'Unknown' if system.get('vm') else None
 
 
 # --- SMBIOS table reading -----------------------------------------------------
@@ -217,8 +249,11 @@ def parse_smbios(table):
             idx = _u8(fmt, off)
             return strings[idx - 1] if idx and idx <= len(strings) else ''
 
-        if stype == 1:                                   # System Information
-            system = {'manufacturer': string(0x04), 'model': string(0x05)}
+        if stype == 0:                                   # BIOS Information
+            system['vm'] = bool((_u8(fmt, 0x13) or 0) & 0x10)   # "System is a virtual machine" flag
+
+        elif stype == 1:                                 # System Information
+            system.update({'manufacturer': string(0x04), 'model': string(0x05)})
 
         elif stype == 16:                                # Physical Memory Array
             if _u8(fmt, 0x05) != 0x03:                   # usage other than "system memory"
@@ -307,7 +342,46 @@ def read_smbios_linux():
     except PermissionError:
         sys.exit('The SMBIOS table is only readable by root: run again with sudo.')
     except FileNotFoundError:
-        sys.exit('%s not found (kernel older than 4.2, or a machine without SMBIOS such as a Raspberry Pi).' % path)
+        return None                                      # WSL 2, container, Raspberry Pi, kernel older than 4.2...
+
+
+def read_linux():
+    table = read_smbios_linux()
+    if table is not None:
+        return parse_smbios(table)
+    try:
+        with open('/proc/sys/kernel/osrelease') as f:
+            wsl = 'microsoft' in f.read().lower()
+    except OSError:
+        wsl = False
+    # WSL 2 runs in a Hyper-V virtual machine that has no SMBIOS table
+    return ({'manufacturer': 'Microsoft', 'model': 'WSL'} if wsl else {}), [], []
+
+
+def os_visible_ram_mb():
+    """RAM visible to the operating system (allocated to the VM in a virtual machine), in MB."""
+    try:
+        if sys.platform == 'win32':
+            import ctypes
+
+            class MemoryStatusEx(ctypes.Structure):
+                _fields_ = [('dwLength', ctypes.c_uint32), ('dwMemoryLoad', ctypes.c_uint32),
+                            ('ullTotalPhys', ctypes.c_uint64), ('ullOthers', ctypes.c_uint64 * 6)]
+
+            status = MemoryStatusEx()
+            status.dwLength = ctypes.sizeof(status)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+                return status.ullTotalPhys / 1048576.0
+        elif sys.platform == 'darwin':
+            return int(subprocess.check_output(['sysctl', '-n', 'hw.memsize'])) / 1048576.0
+        else:
+            with open('/proc/meminfo') as f:
+                for line in f:
+                    if line.startswith('MemTotal:'):
+                        return int(line.split()[1]) / 1024.0
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        pass
+    return None
 
 
 # --- macOS --------------------------------------------------------------------
@@ -360,11 +434,15 @@ def read_macos():
                 walk(value)
 
     walk(data)
-    try:
-        model = subprocess.check_output(['sysctl', '-n', 'hw.model']).decode().strip()
-    except (OSError, subprocess.CalledProcessError):
-        model = ''
-    return {'manufacturer': 'Apple', 'model': model}, [], modules
+
+    def sysctl(name):
+        try:
+            return subprocess.check_output(['sysctl', '-n', name], stderr=subprocess.DEVNULL).decode().strip()
+        except (OSError, subprocess.CalledProcessError):
+            return ''
+
+    system = {'manufacturer': 'Apple', 'model': sysctl('hw.model'), 'vm': sysctl('kern.hv_vmm_present') == '1'}
+    return system, [], modules
 
 
 # --- Output -------------------------------------------------------------------
@@ -375,15 +453,18 @@ def format_gb(size_mb):
     return '%g' % round(size_mb / 1024.0, 1)
 
 
-def build_rows(modules):
+def build_rows(modules, hypervisor):
     rows = []
     for m in modules:
+        brand = resolve_vendor(m['vendor'], m['part'])
+        if hypervisor and brand == 'Unknown':
+            brand = hypervisor
         rows.append({
             'Slot': m['slot'],
-            'Brand': resolve_vendor(m['vendor'], m['part']),
+            'Brand': brand,
             'Part number': m['part'],
             'GB': format_gb(m['size_mb']),
-            'Type': resolve_type(m['type'], m['part'], m['speed']),
+            'Type': resolve_type(m['type'], m['part'], m['speed'], virtual=bool(hypervisor)),
             'Form factor': m['form'],
             'Nominal MHz': str(m['speed']) if m['speed'] else '?',
             'Current MHz': str(m['configured']) if m['configured'] else '?',
@@ -432,27 +513,43 @@ def main():
     elif sys.platform == 'darwin':
         system, arrays, modules = read_macos()
     else:
-        system, arrays, modules = parse_smbios(read_smbios_linux())
+        system, arrays, modules = read_linux()
+
+    hypervisor = detect_hypervisor(system)
+    os_mb = None if args.dmi_file else os_visible_ram_mb()     # a saved table comes from another machine
 
     print()
-    print('PC: %s %s (%s)' % (system.get('manufacturer', ''), system.get('model', ''), platform.node()))
+    name = ' '.join(filter(None, [system.get('manufacturer'), system.get('model'), '(%s)' % platform.node()]))
+    if hypervisor:
+        print('VM: %s - hypervisor: %s' % (name, hypervisor))
+    else:
+        print('PC: ' + name)
 
     if not modules:
-        print('No RAM module found (virtual machine?).')
+        print('No memory module exposed by the hypervisor.' if hypervisor else 'No RAM module found (virtual machine?).')
+        if os_mb:
+            print('RAM visible to the OS: %s GB' % format_gb(os_mb))
+        print()
         return
 
-    rows = build_rows(modules)
+    rows = build_rows(modules, hypervisor)
     print_table(rows)
     print()
 
     total_mb = sum(m['size_mb'] or 0 for m in modules)
-    summary = 'Total: %s GB in %d module(s)' % (format_gb(total_mb), len(modules))
-    slots = sum(a['slots'] for a in arrays)
-    if slots:
-        summary += ' - %d/%d slot(s) used' % (len(modules), slots)
-    max_bytes = sum(a['max_bytes'] for a in arrays)
-    if max_bytes:
-        summary += ' - BIOS official max: %g GB' % round(max_bytes / 1024.0 ** 3)
+    if hypervisor:
+        # The slot count and maximum capacity of a virtual firmware are meaningless
+        summary = 'Total: %s GB in %d virtual module(s)' % (format_gb(total_mb), len(modules))
+        if os_mb:
+            summary += ' - RAM visible to the OS: %s GB' % format_gb(os_mb)
+    else:
+        summary = 'Total: %s GB in %d module(s)' % (format_gb(total_mb), len(modules))
+        slots = sum(a['slots'] for a in arrays)
+        if slots:
+            summary += ' - %d/%d slot(s) used' % (len(modules), slots)
+        max_bytes = sum(a['max_bytes'] for a in arrays)
+        if max_bytes:
+            summary += ' - BIOS official max: %g GB' % round(max_bytes / 1024.0 ** 3)
     print(summary)
     print()
 

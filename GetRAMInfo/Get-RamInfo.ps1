@@ -15,6 +15,12 @@
     which is actually a data rate in MT/s. The real bus clock is half of it
     (the one CPU-Z shows as "DRAM Frequency").
 
+    Virtual machines (VirtualBox, VMware, Hyper-V, QEMU/KVM, Xen, Parallels...)
+    are recognized from the system manufacturer and model. Their memory modules
+    are emulated: their type is shown as "Virtual" instead of being estimated,
+    and the RAM allocated to the VM, as seen by Windows, is shown as well (some
+    hypervisors, VirtualBox by default, expose no module at all).
+
 .PARAMETER CsvPath
     Optional path of a CSV file to export the result to.
 
@@ -70,6 +76,20 @@ $SmbiosRomTypes = @(8, 9, 10, 11, 12)
 $CimRomTypes = @(10, 11, 12, 13, 14)
 
 $FormFactors = @{ 7 = 'SIMM'; 8 = 'DIMM'; 11 = 'RIMM'; 12 = 'SO-DIMM' }
+
+# "Manufacturer Model" of the system -> hypervisor
+$Hypervisors = @(
+    @('virtualbox|innotek', 'VirtualBox'),
+    @('vmware', 'VMware'),
+    @('microsoft corporation virtual machine', 'Hyper-V'),
+    @('parallels', 'Parallels'),
+    @('qemu|bochs|standard pc \(|openstack|ovirt|rhev|proxmox|(^| )kvm( |$)', 'QEMU/KVM'),
+    @('(^| )xen( |$)|hvm domu', 'Xen'),
+    @('virtualmac|apple virtualization', 'Apple Virtualization'),
+    @('bhyve', 'bhyve'),
+    @('amazon ec2', 'Amazon EC2'),
+    @('google compute engine', 'Google Compute Engine')
+)
 
 function Get-WmiData([string]$Class) {
     if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
@@ -150,7 +170,7 @@ function Get-DdrFromSpeed([int]$Mts) {
     return 'DDR5'
 }
 
-function Get-DdrType($Module) {
+function Get-DdrType($Module, [bool]$Virtual) {
     if ($Module.SMBIOSMemoryType) {
         $t = [int]$Module.SMBIOSMemoryType
         if ($SmbiosTypes.ContainsKey($t)) { return $SmbiosTypes[$t] }
@@ -159,6 +179,7 @@ function Get-DdrType($Module) {
         $t = [int]$Module.MemoryType
         if ($CimTypes.ContainsKey($t)) { return $CimTypes[$t] }
     }
+    if ($Virtual) { return 'Virtual' }      # emulated module: an estimated DDR type would be misleading
     $guess = Get-DdrFromPartNumber $Module.PartNumber
     if (-not $guess) { $guess = Get-DdrFromSpeed ([int]$Module.Speed) }
     if ($guess) { return "$guess (estimated)" }
@@ -168,6 +189,14 @@ function Get-DdrType($Module) {
 function Test-RomDevice($Module) {
     ($Module.SMBIOSMemoryType -and ($SmbiosRomTypes -contains [int]$Module.SMBIOSMemoryType)) -or
     ($Module.MemoryType -and ($CimRomTypes -contains [int]$Module.MemoryType))
+}
+
+function Get-Hypervisor([string]$Manufacturer, [string]$Model) {
+    $text = "$Manufacturer $Model".Trim()
+    foreach ($entry in $Hypervisors) {
+        if ($text -match $entry[0]) { return $entry[1] }
+    }
+    return $null
 }
 
 function Format-Speed($Value) {
@@ -181,6 +210,11 @@ $sticks = @(Get-WmiData 'Win32_PhysicalMemory' | Where-Object { -not (Test-RomDe
 $computer = @(Get-WmiData 'Win32_ComputerSystem')[0]
 $arrays = @(Get-WmiData 'Win32_PhysicalMemoryArray' | Where-Object { $_.Use -eq 3 })   # 3 = system memory
 
+$pcVendor = "$($computer.Manufacturer)".Trim()
+$pcModel = "$($computer.Model)".Trim()
+$hypervisor = Get-Hypervisor $pcVendor $pcModel
+$osGb = [math]::Round([double]$computer.TotalPhysicalMemory / 1GB, 1)   # RAM visible to Windows
+
 $modules = foreach ($m in $sticks) {
     $slot = "$($m.DeviceLocator)".Trim()
     if (-not $slot) { $slot = "$($m.BankLabel)".Trim() }
@@ -191,12 +225,15 @@ $modules = foreach ($m in $sticks) {
     $gb = '?'                                                       # size not reported by the firmware
     if ([double]$m.Capacity -gt 0) { $gb = [math]::Round([double]$m.Capacity / 1GB, 1) }
 
+    $brand = Resolve-Vendor $m.Manufacturer $m.PartNumber
+    if ($hypervisor -and $brand -eq 'Unknown') { $brand = $hypervisor }
+
     New-Object PSObject -Property @{
         'Slot'  = $slot
-        'Brand'       = Resolve-Vendor $m.Manufacturer $m.PartNumber
+        'Brand'       = $brand
         'Part number'    = "$($m.PartNumber)".Trim()
         'GB'           = $gb
-        'Type'         = Get-DdrType $m
+        'Type'         = Get-DdrType $m ([bool]$hypervisor)
         'Form factor'       = $format
         'Nominal MHz'  = Format-Speed $m.Speed
         'Current MHz'   = Format-Speed $m.ConfiguredClockSpeed
@@ -207,27 +244,43 @@ $modules = @($modules | Select-Object 'Slot', 'Brand', 'Part number', 'GB', 'Typ
 # --- Output -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host ("PC: {0} {1} ({2})" -f "$($computer.Manufacturer)".Trim(), "$($computer.Model)".Trim(), $env:COMPUTERNAME) -ForegroundColor Cyan
+if ($hypervisor) {
+    Write-Host ("VM: {0} {1} ({2}) - hypervisor: {3}" -f $pcVendor, $pcModel, $env:COMPUTERNAME, $hypervisor) -ForegroundColor Cyan
+} else {
+    Write-Host ("PC: {0} {1} ({2})" -f $pcVendor, $pcModel, $env:COMPUTERNAME) -ForegroundColor Cyan
+}
 
 if ($modules.Count -eq 0) {
-    Write-Host 'No RAM module reported by WMI (virtual machine?).' -ForegroundColor Yellow
+    if ($hypervisor) {
+        Write-Host 'No memory module exposed by the hypervisor.' -ForegroundColor Yellow
+    } else {
+        Write-Host 'No RAM module reported by WMI (virtual machine?).' -ForegroundColor Yellow
+    }
+    if ($osGb -gt 0) { Write-Host "RAM visible to the OS: $osGb GB" -ForegroundColor Cyan }
+    Write-Host ''
     return
 }
 
 $modules | Format-Table -AutoSize | Out-Host
 
 $totalGb = [math]::Round(([double]($sticks | Measure-Object -Property Capacity -Sum).Sum) / 1GB, 1)
-$summary = "Total: $totalGb GB in $($modules.Count) module(s)"
-if ($arrays.Count -gt 0) {
-    $slots = [int]($arrays | Measure-Object -Property MemoryDevices -Sum).Sum
-    if ($slots -gt 0) { $summary += " - $($modules.Count)/$slots slot(s) used" }
-    $maxKb = 0
-    foreach ($a in $arrays) {
-        $kb = [double]$a.MaxCapacityEx
-        if ($kb -le 0) { $kb = [double]$a.MaxCapacity }
-        $maxKb += $kb
+if ($hypervisor) {
+    # The slot count and maximum capacity of a virtual firmware are meaningless
+    $summary = "Total: $totalGb GB in $($modules.Count) virtual module(s)"
+    if ($osGb -gt 0) { $summary += " - RAM visible to the OS: $osGb GB" }
+} else {
+    $summary = "Total: $totalGb GB in $($modules.Count) module(s)"
+    if ($arrays.Count -gt 0) {
+        $slots = [int]($arrays | Measure-Object -Property MemoryDevices -Sum).Sum
+        if ($slots -gt 0) { $summary += " - $($modules.Count)/$slots slot(s) used" }
+        $maxKb = 0
+        foreach ($a in $arrays) {
+            $kb = [double]$a.MaxCapacityEx
+            if ($kb -le 0) { $kb = [double]$a.MaxCapacity }
+            $maxKb += $kb
+        }
+        if ($maxKb -gt 0) { $summary += " - BIOS official max: $([math]::Round($maxKb / 1MB)) GB" }
     }
-    if ($maxKb -gt 0) { $summary += " - BIOS official max: $([math]::Round($maxKb / 1MB)) GB" }
 }
 Write-Host $summary -ForegroundColor Cyan
 Write-Host ''
