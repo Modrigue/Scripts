@@ -16,6 +16,8 @@ Useful scripts and commands for Linux, Windows and WSL.
 
 [Ubuntu post-installation script](./Linux/ubuntu_post_install.sh)
 
+[Get RAM Info](./GetRAMInfo/get-ram-info.sh)
+
 [XFCE commands](./Linux/xfce_commands.sh)
 
 ## Windows
@@ -31,6 +33,8 @@ Useful scripts and commands for Linux, Windows and WSL.
 [Detect Visual Studio versions (detailed)](./Windows/detect_vs_versions_detailed.bat)
 
 [Remove OneDrive](./Windows/remove_onedrive.cmd)
+
+[Get RAM Info](./GetRAMInfo/Get-RamInfo.ps1)
 
 ### WSL
 
