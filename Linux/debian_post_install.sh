@@ -24,30 +24,26 @@ sudo apt update
 sudo apt install -y nala
 
 # check and update fastest mirrors
-sudo nala fetch
-sudo nala update
+sudo apt fetch
+sudo apt update
 
 # misc cli tools
-sudo nala install -y curl wget vim neofetch htop btop duf preload httpie hardinfo
+sudo apt install -y curl wget vim neofetch htop btop duf preload httpie hardinfo
 
 # flatpak
-sudo nala install -y flatpak
+sudo apt install -y flatpak
 sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 #sudo reboot
 
 # browsers: remove preinstalled Firefox ESR
-sudo nala remove firefox-esr
+sudo apt remove firefox-esr
 sudo flatpak install firefox brave mullvad
 
 # browser set Flatpak Brave as default browser
 xdg-settings set default-web-browser com.brave.Browser.desktop
 
-# LibreOffice: remove obsolete preinstalled version and install flatpak version
-sudo nala remove libreoffice-common libreoffice-core libreoffice-gnome libreoffice-gtk3 libreoffice-help-common libreoffice-help-en-us libreoffice-help-fr libreoffice-help-es libreoffice-style-colibre libreoffice-style-elementary
-sudo flatpak install libreoffice
-
 # misc tools
-sudo nala install -y gparted libavcodec-extra tlp
+sudo apt install -y gparted libavcodec-extra tlp
 sudo flatpak install thunderbird gimp vlc inkscape filezilla keepassxc jitsi drawio
 
 # VS code
@@ -55,14 +51,14 @@ curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microso
 sudo install -o root -g root -m 644 microsoft.gpg /usr/share/keyrings/microsoft-archive-keyring.gpg
 sudo sh -c 'echo "deb [arch=amd64,arm64,armhf signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
 rm -f packages.microsoft.gpg
-sudo nala install -y apt-transport-https
-sudo nala update
-sudo nala install -y code
+sudo apt install -y apt-transport-https
+sudo apt update
+sudo apt install -y code
 
 # other development tools
-sudo nala install -y build-essential cmake
-sudo nala install -y python3-venv python3-pip
-sudo nala install -y nodejs npm
+sudo apt install -y build-essential cmake
+sudo apt install -y python3-venv python3-pip
+sudo apt install -y nodejs npm
 sudo npm install -g typescript
 sudo flatpak install intellij pycharm postman dbeaver
 #sudo flatpak install gitkraken # icon bug
@@ -73,24 +69,38 @@ sudo dpkg -i gitkraken-amd64.deb
 wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
 sudo dpkg -i packages-microsoft-prod.deb
 sudo apt update
-sudo nala install -y dotnet-sdk-8.0
+sudo apt install -y dotnet-sdk-8.0
 sudo dotnet workload update
 dotnet new install Avalonia.Templates
 
 # music
 sudo flatpak install musescore audacity
 
+# LibreOffice: remove obsolete preinstalled version and install flatpak version
+sudo apt remove libreoffice-common libreoffice-core libreoffice-gnome libreoffice-gtk3 libreoffice-help-common libreoffice-help-en-us libreoffice-help-fr libreoffice-help-es libreoffice-style-colibre libreoffice-style-elementary
+sudo flatpak install libreoffice
+
+# remove LibreOffice
+sudo apt purge "libreoffice*"
+sudo apt autoremove --purge
+# check
+dpkg -l | grep libreoffice
+
+# OnlyOffice
+
+
 # broadcom wifi card driver
-sudo nala install broadcom-sta-dkms
+sudo apt install broadcom-sta-dkms
 
 # nvidia driver
-sudo nala install nvidia-detect
+sudo apt install nvidia-detect
 nvidia-detect
-sudo nala install nvidia-driver # if needed
+sudo apt install nvidia-driver # if needed
 
-# additional gnome / kde tools
-sudo nala install -y gnome-system-tools
-sudo nala install -y gnome-software gnome-software-plugin-flatpak
-# or
-sudo nala install -y kuser
-sudo nala install -y plasma-discover plasma-discover-backend-flatpak
+# additional gnome tools
+sudo apt install -y gnome-system-tools
+sudo apt install -y gnome-software gnome-software-plugin-flatpak
+
+# additional kde tools
+sudo apt install -y kuser
+sudo apt install -y plasma-discover plasma-discover-backend-flatpak
